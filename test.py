@@ -9,7 +9,8 @@ from g2PlusPlusParams import G2PlusPlusParams as G2Parameters
 from g2PlusPlusAnalyticalFormula import G2PlusPlusAnalyticalFormula as GA
 import unittest
 from mock import patch
-
+from discountFactors import DiscountFactors as DF
+import pandas as pd
 
 class TestStringMethods(unittest.TestCase):
     
@@ -32,6 +33,10 @@ class TestStringMethods(unittest.TestCase):
         val = GA.ZCB_Func_A(g2params, 0, 1)
         self.assertEqual(val, 1)
         
+    def test_DiscountFactors(self):
+        df = pd.read_csv('DFFactor.csv')
+        self.assertNotEqual(df.size, 0)
+       
 if __name__ == '__main__':
     unittest.main()
 

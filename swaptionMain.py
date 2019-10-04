@@ -11,6 +11,8 @@ from scipy.stats import norm
 import numpy as np
 from g2PlusPlusParams import G2PlusPlusParams as G2Parameters
 from g2PlusPlusAnalyticalFormula import G2PlusPlusAnalyticalFormula as GA
+import math
+from scipy.optimize import fsolve
 # example 
 
 g2params = G2Parameters(1,1.5,2,0.16,0.5)
@@ -57,16 +59,28 @@ def swaptionPrice(g2params, T, maturity, notional, X, isPayer):
         # first part in the integral
         temp1 = math.exp(-0.5 * (((x - mu_x)/sigma_x) ** 2)) / (sigma_x * math.sqrt( 2 * math.pi))
         
-        sum_Func_B = 0 
-        sum_Func_Ci_A = 0 
-        sum_Func_B_x = 0 
+#        sum_Func_B = 0 
+#        sum_Func_Ci_A = 0 
+#        sum_Func_B_x = 0 
+#        
+#        for i in range(len(t_i)):
+#            sum_Func_B_x += GA.ZCB_Func_B(g2params.alpha, T, t_i[i]) * x
+#            sum_Func_Ci_A += math.log(c_i[i] * GA.ZCB_Func_A(g2params, T, t_i[i]))
+#            sum_Func_B += GA.ZCB_Func_B(g2params.alpha, T, t_i[i])
+#        
+#        y_bar = (sum_Func_B_x - sum_Func_Ci_A)/sum_Func_B
+
+#        
+        def y_bar_solver(y):
+            sum_all = 0 
+            for i in range(len(t_i)):
+                sum_all += c_i[i] * GA.ZCB_Func_A(g2params, T, t_i[i]) * math.exp(-1 * GA.ZCB_Func_B(g2params.alpha, T, t_i[i]) * x - GA.ZCB_Func_B(g2params.beta, T, t_i[i]) * y)
+                return sum_all
         
-        for i in range(len(t_i)):
-            sum_Func_B_x += GA.ZCB_Func_B(g2params.alpha, T, t_i[i]) * x
-            sum_Func_Ci_A += math.log(c_i[i] * GA.ZCB_Func_A(g2params, T, t_i[i]))
-            sum_Func_B += GA.ZCB_Func_B(g2params.alpha, T, t_i[i])
+        y_bar = fsolve(y_bar_solver, 1)
         
-        y_bar = (sum_Func_B_x - sum_Func_Ci_A)/sum_Func_B
+        print(y_bar)
+        
         h_1_x = ((y_bar - mu_y)/(sigma_y * math.sqrt(1 - rho_xy ** 2))) - ((rho_xy * (x - mu_x))/(sigma_x * math.sqrt(1 - rho_xy ** 2)))
         
         temp2 = norm.cdf(-1 * isPayer * h_1_x)
@@ -88,7 +102,9 @@ def swaptionPrice(g2params, T, maturity, notional, X, isPayer):
     return price 
         
 
-swaptionPrice(g2params, T, maturity, notional, X, isPayer)
+#DFFactors = pd.read_csv('DFFactor.csv')
+
+swaptionPrice(g2params, tenor, maturity, notional, X, isPayer)
         
         
         
