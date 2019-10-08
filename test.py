@@ -32,11 +32,8 @@ class TestStringMethods(unittest.TestCase):
         g2params = G2Parameters(1,2,3,4,5)
         val = GA.ZCB_Func_A(g2params, 0, 1)
         self.assertEqual(val, 1)
-        
-    def test_DiscountFactors(self):
-        df = pd.read_csv('DFFactor.csv')
-        self.assertNotEqual(df.size, 0)
        
+
 if __name__ == '__main__':
     unittest.main()
 
