@@ -17,9 +17,6 @@ from scipy.optimize import fsolve
 import datetime
 
 
-# alpha, beta, sigma, eta, rho
-g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-
 # parametmers of the swaption to calibrate  
 # tenor of the IRS
 tenor = 1
@@ -66,9 +63,6 @@ def swaptionPrice(g2params, tenor, maturity, notional, X, isPayer):
     
     rho_xy = SWPTNG2PPAF.rho_xy(g2params, sigma_x, sigma_y, tenor)
     
-    # first part, constant before the integral
-    temp1 = notional * P_0_T
-    
     # get the variable c 
     paymentTimes = tenor/payFreq
     yearFractions = np.repeat(payFreq, paymentTimes, axis=0)
@@ -82,8 +76,8 @@ def swaptionPrice(g2params, tenor, maturity, notional, X, isPayer):
     
     # numerically find the solution
     interval = 0.01
-    upper_bound = mu_x + 10 * sigma_x
-    lower_bound = mu_x - 10 * sigma_x
+    upper_bound = 5
+    lower_bound = -5
     xList = np.arange(lower_bound, upper_bound, interval)
     
     swptnPrice = 0 
@@ -99,6 +93,7 @@ def swaptionPrice(g2params, tenor, maturity, notional, X, isPayer):
             return sum_all
         
         y_bar = fsolve(y_bar_solver, 1)
+        
         print(y_bar)
         
         sqrt_rho = math.sqrt(1 - rho_xy ** 2)
@@ -122,11 +117,18 @@ def swaptionPrice(g2params, tenor, maturity, notional, X, isPayer):
             temp3 += lambda_i * math.exp(kappa_i) * norm.cdf(-h_2_x * isPayer)
         
         swptnPrice += (temp2 - temp3) * pdf_value
-        
+       
     print("P_0_T: {}".format(P_0_T))
     print("integral Value: {}".format(swptnPrice))
-    return swptnPrice * notional * P_0_T
+    # test on 1 year tenor 2 maturity swaption, which is 70.9 on bloomberg 
+    return swptnPrice * discountedNotional - 70.9
 
+
+# alpha, beta, sigma, eta, rho
+g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
+bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5))
+
+result = optimize.minimize(swaptionPrice, g2params, args=(tenor, maturity, notional, X, isPayer), bounds=bnds, method='L-BFGS-B')
 
 swaptionPrice(g2params,tenor, maturity, notional, X, isPayer)
 
