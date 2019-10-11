@@ -22,10 +22,10 @@ import datetime
 tenor = 1
 
 # total notional value for the IRS
-notional = 1000
+notional = 1
 
 # fixed rate
-X = 0.02
+X = 0.0166
 
 # determine if it is a payer or receiver swaption
 isPayer = 1
@@ -121,12 +121,12 @@ def swaptionPrice(g2params, tenor, maturity, notional, X, isPayer):
     print("P_0_T: {}".format(P_0_T))
     print("integral Value: {}".format(swptnPrice))
     # test on 1 year tenor 2 maturity swaption, which is 70.9 on bloomberg 
-    return swptnPrice * discountedNotional - 70.9
+    return swptnPrice * discountedNotional - 0.00709
 
 
 # alpha, beta, sigma, eta, rho
 g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5))
+bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(-0.999, 0.999))
 
 result = optimize.minimize(swaptionPrice, g2params, args=(tenor, maturity, notional, X, isPayer), bounds=bnds, method='L-BFGS-B')
 
