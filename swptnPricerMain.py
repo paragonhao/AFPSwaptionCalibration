@@ -55,9 +55,9 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     print("paramss+++++")
     P_0_T = G2.getTermStructure(maturity)
     
+    # find out the cash flow and the payment time in terms of years
     paymentTimes = tenor/payFreq
     tau = np.repeat(payFreq, paymentTimes, axis=0)
-    
     c_i = tau * fixedRate
     c_i[-1] = c_i[-1] + 1
     t_i = np.arange(maturity+payFreq, tenor+maturity + payFreq, payFreq)
@@ -117,13 +117,13 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
             lambda_array.append(c_i[i] * A_array[i] * math.exp(-Ba_array[i] * x))
 
         def y_bar_solver(y):
-            sum_all = 0
+            sum_all = 0.0
             
             for i in range(len(t_i)):
                 sum_all += lambda_array[i] * math.exp(-Bb_array[i] * y)
-            return sum_all - 1
+            return sum_all - 1.0
         
-        y_bar = optimize.fsolve(y_bar_solver, x0=1)
+        y_bar = optimize.fsolve(y_bar_solver, x0=1, xtol=1e-6)
         h1 = (y_bar - mu_y)/(sigma_y * txy) - rho_xy * (x - mu_x)/(sigma_x * txy)
         cdf_val_1 = norm.cdf(-isPayer * h1)
         
@@ -145,7 +145,6 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     
     swaptionPrice = notional * isPayer * P_0_T * integral_result
     
-    
     # getting implied volatilty
     c = swaptionPrice /(isPayer * notional * (G2.getTermStructure(maturity) - G2.getTermStructure(maturity + tenor)))
     g2_IV = (1/(isPayer * math.sqrt(maturity))) * (2.506297 * c - 0.686461 * c * c)/(1 - 0.277069 * c - 0.237552 * c * c)
@@ -153,7 +152,7 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     
 g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
 swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPayer)
-bnds = ((0.001, 5),(0.001, 0.05),(0.001, 0.05),(0.001, 0.05),(-0.999, 0.999))
+bnds = ((0.001, 5),(0.001, 0.05),(0.001, 0.07),(0.001, 0.1),(-0.999, 0.999))
 
 result = optimize.minimize(swaptionPricingFunction, g2params, args=(tenor, maturity, notional, fixedRate, isPayer), bounds=bnds, method='L-BFGS-B')
 

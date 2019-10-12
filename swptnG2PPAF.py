@@ -54,7 +54,8 @@ class SWPTNG2PPAF:
     # g2params: the five parameters 
     # Note: t_i > T
     def A(self, g2params, t_i, T):
-        return (self.getTermStructure(T)/self.getTermStructure(t_i)) * math.exp(0.5 * (self.V(g2params, T - t_i) - self.V(g2params, T) + self.V(g2params, t_i)))
+        return (self.getTermStructure(T)/self.getTermStructure(t_i)) * math.exp(0.5 * (self.V(g2params, T - t_i) - 
+                                      self.V(g2params, T) + self.V(g2params, t_i)))
 
 
     
