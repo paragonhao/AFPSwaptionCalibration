@@ -10,13 +10,26 @@ import math
 # G2++ zero coupon bond analytical formula
 class SWPTNG2PPAF:
     
+    termStructure = None
+    
+    def __init__(self, termStructure):
+        self.termStructure = termStructure
+        termStructure['Term[y]'] = termStructure['Term[y]'].apply(lambda x: round(float(x),1))
+        
+    
+    
+    def getTermStructure(self, T):
+        currTS = self.termStructure[self.termStructure['Term[y]']==T]
+        
+        return float(currTS['DF.mid'].mean())
+    
+    
     
     # V(t,T) in the book page 145
     # g2params: the five parameters 
     # t: starting time of the ZCB 
     # T: ending time of the ZCB
-    @staticmethod
-    def ZCB_Variance(g2params, t, T):
+    def V(self, g2params, t):
         # five params in an array 
         alpha = g2params[0]
         beta = g2params[1]
@@ -24,56 +37,35 @@ class SWPTNG2PPAF:
         eta = g2params[3]
         rho = g2params[4]
         
-        b1 = SWPTNG2PPAF.B1Formula(alpha, t, T)
-        b2 = SWPTNG2PPAF.B2Formula(beta, t, T)
-        b12 = SWPTNG2PPAF.B12Formula(alpha, beta, t, T) 
-        
-        temp1 = ((sigma ** 2)/(alpha ** 2)) * (T - t - b1 - (alpha/2) * (b1 ** 2))
-        temp2 = ((eta ** 2)/(beta ** 2)) * (T - t - b2 - (beta/2) * (b2 ** 2))
-        temp3 = ((2 * sigma * eta * rho)/(alpha * beta)) * (T - t - b1 - b2 + b12)
+        expat = math.exp(-alpha * t)
+        expbt = math.exp(-beta * t)
+        cx = sigma/alpha
+        cy = eta/beta
+        temp1 = cx * cx * (t + (2.0 * expat - 0.5 * expat * expat - 1.5)/alpha)
+        temp2 = cy * cy * (t + (2.0 * expbt - 0.5 * expbt * expbt - 1.5)/beta)
+        temp3 = 2.0 * rho * cx * cy * (t + (expat -1.0)/alpha + (expbt - 1.0)/beta - 
+                                       (expat * expbt - 1.0)/(alpha + beta))
         
         return temp1 + temp2 + temp3
         
     
     
-    @staticmethod
-    def B1Formula(alpha, t, T):
-        return (1 - math.exp(-alpha * (T - t)))/alpha
-        
-        
-    
-    @staticmethod
-    def B2Formula(beta, t, T):
-        return (1 - math.exp(-beta * (T - t)))/beta
-    
-    
-    
-    @staticmethod
-    def B12Formula(alpha, beta, t, T):
-        return (1 - math.exp(-(alpha + beta) * (T - t)))/(alpha + beta)
-    
-    
-    
-    
     # A(t, T) function in the book page 148 
     # g2params: the five parameters 
-    # PM_0_ti: discount factor from 0 to t_i
-    # PM_0_T: discount factor from 0 to T
     # Note: t_i > T
-    @staticmethod
-    def ZCB_Func_A(g2params, PM_0_ti, PM_0_T, t_i, T):
-        var_T_ti = SWPTNG2PPAF.ZCB_Variance(g2params, T, t_i)
-        var_0_ti = SWPTNG2PPAF.ZCB_Variance(g2params, 0, t_i)
-        var_0_T = SWPTNG2PPAF.ZCB_Variance(g2params, 0, T)
-        
-        return (PM_0_ti/PM_0_T) * math.exp(0.5 * (var_T_ti - var_0_ti + var_0_T))
+    def A(self, g2params, t_i, T):
+        return (self.getTermStructure(T)/self.getTermStructure(t_i)) * math.exp(0.5 * (self.V(g2params, T - t_i) - self.V(g2params, T) + self.V(g2params, t_i)))
+
+
     
+    def B(self, x, t):
+        return (1.0 - math.exp(-x*t))/x
+        
     
     
     # mu_x function in book page 154
     # mu 1 
-    @staticmethod
-    def Mu_x(g2params, T):
+    def Mu_x(self, g2params, T):
         # five params in an array 
         alpha = g2params[0]
         beta = g2params[1]
@@ -81,22 +73,19 @@ class SWPTNG2PPAF:
         eta = g2params[3]
         rho = g2params[4]
         
-        b1 = SWPTNG2PPAF.B1Formula(alpha, 0, T)
-        b12 = SWPTNG2PPAF.B12Formula(alpha, beta, 0, T)
+        temp = sigma * sigma/(alpha * alpha)
         
-        temp1 = (sigma ** 2)/(2 * (alpha ** 2)) * (1 - math.exp(-2 * alpha * T))
-        temp2 = (sigma * eta * rho / beta) * b12
-        temp3 = (((sigma ** 2)/alpha) + (sigma * eta * rho/beta)) * b1
+        mux = -(temp + rho * sigma * eta/(alpha * beta)) * (1.0 - math.exp(-alpha * T)) \
+        - 0.5 * temp * (1.0 - math.exp(-2.0 * alpha * T )) - rho * sigma * eta/(beta * (alpha + beta)) \
+        * (1 - math.exp(-(beta + alpha) * T))
         
-        return temp1 + temp2 - temp3
-    
-    
-    
-    
+        return mux 
+
+
+
     # mu_y function in book page 154
     # mu 2
-    @staticmethod
-    def Mu_y(g2params, T):
+    def Mu_y(self, g2params, T):
         # five params in an array 
         alpha = g2params[0]
         beta = g2params[1]
@@ -104,40 +93,37 @@ class SWPTNG2PPAF:
         eta = g2params[3]
         rho = g2params[4]
         
-        b2 = SWPTNG2PPAF.B2Formula(beta, 0, T)    
-        b12 = SWPTNG2PPAF.B12Formula(alpha, beta, 0, T)
+        temp = eta * eta /(beta * beta)
         
-        temp1 = (eta ** 2)/(2 * (beta ** 2)) * (1 - math.exp(-2 * beta * T))
-        temp2 = (sigma * eta * rho / alpha) * b12 
-        temp3 = (((eta ** 2)/beta) + (sigma * eta * rho/alpha)) * b2
+        muy = -(temp + rho * sigma * eta/(alpha * beta)) * (1.0 - math.exp(-beta * T)) \
+        - 0.5 * temp * (1.0 - math.exp(-2.0 * beta * T)) \
+        - rho * sigma * eta /(alpha * (alpha + beta)) * (1.0 - math.exp(-(beta + alpha) * T))
         
-        return temp1 + temp2 - temp3
+        return muy
     
 
 
-    @staticmethod 
-    def sigma_x(sigma, alpha, T):
-        sigma_x = sigma * math.sqrt((1 - math.exp(-2 * alpha * T))/(2 * alpha))
+
+    def sigma_x(self, sigma, alpha, T):
+        sigma_x = sigma * math.sqrt(0.5 * (1.0 - math.exp(-2.0 * alpha * T))/alpha)
         return sigma_x
     
     
     
-    @staticmethod
-    def sigma_y(eta, beta, T):
-        sigma_y = eta * math.sqrt((1 - math.exp(-2 * beta * T))/(2 * beta))
+    def sigma_y(self, eta, beta, T):
+        sigma_y = eta * math.sqrt(0.5 * (1.0 - math.exp(-2.0 * beta * T))/beta)
         return sigma_y
     
     
-    
-    @staticmethod
-    def rho_xy(g2params, sigma_x, sigma_y, T):
+
+    def rho_xy(self, g2params, sigma_x, sigma_y, T):
         alpha = g2params[0]
         beta = g2params[1]
         sigma = g2params[2]
         eta = g2params[3]
         rho = g2params[4]
         
-        return ((sigma * eta * rho)/(sigma_x * sigma_y)) * SWPTNG2PPAF.B12Formula(alpha, beta, 0, T)
+        return rho * eta * sigma * (1.0 - math.exp(-(alpha + beta) * T)) /((alpha + beta) * sigma_x * sigma_y)
          
     
     
