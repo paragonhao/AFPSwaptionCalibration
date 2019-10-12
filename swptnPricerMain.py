@@ -148,7 +148,7 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     # getting implied volatilty
     c = swaptionPrice /(isPayer * notional * (G2.getTermStructure(maturity) - G2.getTermStructure(maturity + tenor)))
     g2_IV = (1/(isPayer * math.sqrt(maturity))) * (2.506297 * c - 0.686461 * c * c)/(1 - 0.277069 * c - 0.237552 * c * c)
-    return g2_IV - 0.709
+    return g2_IV - 0.00709
     
 g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
 swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPayer)
