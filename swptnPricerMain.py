@@ -11,7 +11,6 @@ from scipy.stats import norm
 # norm.cdf(0)
 import numpy as np
 from swptnG2PPAF import SWPTNG2PPAF
-from utils import Utils
 import math
 import scipy.optimize as optimize
 
@@ -145,10 +144,13 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     
     swaptionPrice = notional * isPayer * P_0_T * integral_result
     
+    # find the swaption price using the black model 
+    blackModel76 = BlackModel76(tenor = tenor, fRate = fixedRate, xRate= fixedRate, rfRate=G2.getRiskFreeRate(maturity, P_0_T), T = maturity, sigma=0.00709/2, m = 2)
+    print("blackModel76 is: {}".format(blackModel76.getPayerSwaptionPrice()))
     # getting implied volatilty
-    c = swaptionPrice /(isPayer * notional * (G2.getTermStructure(maturity) - G2.getTermStructure(maturity + tenor)))
-    g2_IV = (1/(isPayer * math.sqrt(maturity))) * (2.506297 * c - 0.686461 * c * c)/(1 - 0.277069 * c - 0.237552 * c * c)
-    return g2_IV - 0.00709
+    #c = swaptionPrice /(isPayer * notional * (G2.getTermStructure(maturity) - G2.getTermStructure(maturity + tenor)))
+    #g2_IV = (1/(isPayer * math.sqrt(maturity))) * (2.506297 * c - 0.686461 * c * c)/(1 - 0.277069 * c - 0.237552 * c * c)
+    return swaptionPrice
     
 g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
 swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPayer)

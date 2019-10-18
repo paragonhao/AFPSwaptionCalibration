@@ -126,5 +126,7 @@ class SWPTNG2PPAF:
         
         return rho * eta * sigma * (1.0 - math.exp(-(alpha + beta) * T)) /((alpha + beta) * sigma_x * sigma_y)
          
-    
+    # helper functions
+    def getRiskFreeRate(self, maturity, termStructure):
+        return pow(1.0 / termStructure, 1.0/maturity) - 1
     
