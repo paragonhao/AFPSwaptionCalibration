@@ -13,7 +13,7 @@ import numpy as np
 from swptnG2PPAF import SWPTNG2PPAF
 import math
 import scipy.optimize as optimize
-
+from normalModel import NormalModel
 import datetime
 import pandas as pd
 
@@ -30,9 +30,6 @@ notional = 1.0
 # fixed rate
 fixedRate = 0.0166
 
-# determine if it is a payer or receiver swaption
-isPayer = 1
-
 # frequency of the payment 
 payFreq = 0.5
 
@@ -41,17 +38,20 @@ termStructure = Utils.readDF('termStructure.csv')
 
 G2 = SWPTNG2PPAF(termStructure)
 
-def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPayer):
+def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate):
     print("running the swaptionPricingFunction")
+    isPayer = 1
+    isReceiver = -1 
+    
     # five params in an array 
     alpha = g2params[0]
     beta = g2params[1]
     sigma = g2params[2]
     eta = g2params[3]
     rho = g2params[4]
-    print("paramss+++++")
+    print("parameters +++++++++++++++++++++++++++")
     print(g2params)
-    print("paramss+++++")
+    print("+++++++++++++++++++++")
     P_0_T = G2.getTermStructure(maturity)
     
     # find out the cash flow and the payment time in terms of years
@@ -60,8 +60,6 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     c_i = tau * fixedRate
     c_i[-1] = c_i[-1] + 1
     t_i = np.arange(maturity+payFreq, tenor+maturity + payFreq, payFreq)
-#    print("paymentTimes: {}".format(len(t_i)))
-#    print("cash flow: {}".format(c_i))
           
     sigma_x = G2.sigma_x(sigma, alpha, maturity)
     
@@ -74,14 +72,7 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     rho_xy = G2.rho_xy(g2params, sigma_x, sigma_y, maturity)
     
     txy = math.sqrt(1 - rho_xy * rho_xy)
-    
-#    print("sigma_x: {}".format(sigma_x))
-#    print("sigma_y: {}".format(sigma_y))
-#    print("mu_x: {}".format(mu_x))
-#    print("mu_y: {}".format(mu_y))
-#    print("rho_xy: {}".format(rho_xy))
-#    print("txy: {}".format(rho_xy))
-    
+       
     A_array = []
     Ba_array = []
     Bb_array = []
@@ -93,23 +84,21 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
     upper = mu_x + 10 * sigma_x
     xList = np.arange(lower, upper, interval)
     
-#    print("Upper: {}".format(upper))
-#    print("Lower: {}".format(lower))
-    
     for i in range(len(t_i)):
-#        print("range: {}".format(i))
+
         A_array.append(G2.A(g2params, maturity, t_i[i]))
-#        print("A: {}".format(G2.A(g2params, maturity, t_i[i])))
+
         Ba_array.append(G2.B(alpha, t_i[i] - maturity))
-#        print("Ba: {}".format(G2.B(alpha, t_i[i] - maturity)))
+
         Bb_array.append(G2.B(beta, t_i[i] - maturity))
     
-#    print(A_array)
-#    print(Ba_array)
-#    print(Bb_array)
     
-    integral_result = 0 
+    integral_result_Payer = 0 
+    integral_result_Receiver = 0 
+    cdf_val_1 = 0               # payer
+    cdf_val_2 = 0               # receiver
     
+    # numerically solves the integral
     for x in xList:
         lambda_array = []
         for i in range(len(t_i)):
@@ -124,39 +113,45 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPa
         
         y_bar = optimize.fsolve(y_bar_solver, x0=1, xtol=1e-6)
         h1 = (y_bar - mu_y)/(sigma_y * txy) - rho_xy * (x - mu_x)/(sigma_x * txy)
+        
         cdf_val_1 = norm.cdf(-isPayer * h1)
+        cdf_val_2 = norm.cdf(-isReceiver * h1)
         
         try:
             for i in range(len(t_i)):
-#                print("Bb_array[i]: {}".format(Bb_array[i]))
-#                print("lambda_array[i]: {}".format(lambda_array[i]))
+
                 h2 = h1 + Bb_array[i] * sigma_y * txy
                 kappa = - Bb_array[i] * (mu_y - 0.5 * txy * txy * sigma_y * sigma_y * Bb_array[i] \
                                   + rho_xy * sigma_y * (x - mu_x)/sigma_x)
-#                print("kappa: {}".format(kappa))
                 cdf_val_1 -= lambda_array[i] * math.exp(kappa) * norm.cdf(-h2 * isPayer)[0]
+                cdf_val_2 -= lambda_array[i] * math.exp(kappa) * norm.cdf(-h2 * isReceiver)[0]
         except OverflowError:
             print("Overflow err: ")
             
         temp_pdf = (x - mu_x) / sigma_x
         
-        integral_result += math.exp(-0.5 * temp_pdf * temp_pdf) * cdf_val_1/(sigma_x * math.sqrt(2.0 * math.pi))
+        integral_result_Payer += math.exp(-0.5 * temp_pdf * temp_pdf) * cdf_val_1/(sigma_x * math.sqrt(2.0 * math.pi))
+        integral_result_Receiver += math.exp(-0.5 * temp_pdf * temp_pdf) * cdf_val_2/(sigma_x * math.sqrt(2.0 * math.pi))
     
-    swaptionPrice = notional * isPayer * P_0_T * integral_result
-    
-    # find the swaption price using the black model 
-    blackModel76 = BlackModel76(tenor = tenor, fRate = fixedRate, xRate= fixedRate, rfRate=G2.getRiskFreeRate(maturity, P_0_T), T = maturity, sigma=0.00709/2, m = 2)
-    print("blackModel76 is: {}".format(blackModel76.getPayerSwaptionPrice()))
-    # getting implied volatilty
-    #c = swaptionPrice /(isPayer * notional * (G2.getTermStructure(maturity) - G2.getTermStructure(maturity + tenor)))
-    #g2_IV = (1/(isPayer * math.sqrt(maturity))) * (2.506297 * c - 0.686461 * c * c)/(1 - 0.277069 * c - 0.237552 * c * c)
-    return swaptionPrice
-    
-g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, isPayer)
-bnds = ((0.001, 5),(0.001, 0.05),(0.001, 0.07),(0.001, 0.1),(-0.999, 0.999))
+    # swaption price calculated using G2++ analytical solution
+    swaptionPricePayer = notional * isPayer * P_0_T * integral_result_Payer
+    swaptionPriceReceiver = notional * isReceiver * P_0_T * integral_result_Receiver
 
-result = optimize.minimize(swaptionPricingFunction, g2params, args=(tenor, maturity, notional, fixedRate, isPayer), bounds=bnds, method='L-BFGS-B')
+    # get the discount factor for each payment of the interest rate swap    
+    dfs = [G2.getTermStructure(t) for t in t_i]
+    
+    # 0.00709 is the IV of the sum of the payer and receiver ATM swaption, so the IV for each swaption is 0.00709/2
+    normModel = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = 0.00709/2, maturity = maturity, discountFactors=dfs)
+
+
+    return (swaptionPricePayer + swaptionPriceReceiver) - (normModel.getPayerSwaptionPrice() + normModel.getReceiverSwaptionPrice())
+    
+#g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
+g2params = [1,1,1,1,-0.999]
+swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate)
+#bnds = ((0.001, 5),(0.001, 0.05),(0.001, 0.05),(0.001, 0.05),(-0.999, 0.999))
+bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(-0.999, 0.999))
+result = optimize.minimize(swaptionPricingFunction, g2params, args=(tenor, maturity, notional, fixedRate), bounds=bnds, method='L-BFGS-B')
 
 if result.success:
     fitted_params = result.x
@@ -164,6 +159,7 @@ if result.success:
     print(fitted_params)
 else:
     raise ValueError(result.message)
+    
 
 
 
