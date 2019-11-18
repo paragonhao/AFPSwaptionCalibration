@@ -111,7 +111,7 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     mu_y = G2.Mu_y(g2params, maturity)
     
     rho_xy = G2.rho_xy(g2params, sigma_x, sigma_y, maturity)
-    
+
     txy = math.sqrt(1 - rho_xy * rho_xy)
        
     A_array = []
@@ -190,8 +190,8 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
 
 
 ########################################### execution ########################################################
-#g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-g2params = [2, 0.1, 0.1, 0.1, 0.999]
+g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
+g2params = [5.53449534, 3.70068385, 0.001, 0.001, 0.925757890]
 
 swaptionPricingOptim(g2params, optimisationGrid)
 bnds = ((0.001, 100),(0.001, 100),(0.001, 100),(0.001, 100),(-0.999, 0.999))
@@ -205,5 +205,35 @@ if result.success:
 else:
     raise ValueError(result.message)
 ########################################################################################
+ 
     
+
+########################################### compare results ########################################################
+def swaptionModelVsMkt(g2params, optimisationGrid):
+    
+    rmse = 0.0
+    
+    for idx, row in optimisationGrid.iterrows():
+        
+        maturity = Utils.monthToYear(row['Maturity'])
+        tenor = Utils.monthToYear(row['Tenor'])
+        
+        # vol is in basis points
+        mktVol = row['Vol']/10000.0
+        
+        # fixed rate is in percentage
+        fixedRate = row['Fss']/100.0
+        print("\n\n")
+        print("Maturity: {}, tenor: {}, vol: {}, fixedRate: {}".format(maturity, tenor, mktVol, fixedRate))
+        
+        normP, normR, G2P, G2R = swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktVol)
+        
+        currErr = (normP + normR - G2P - G2R) ** 2
+        print("Normal Model: Payer: {}, Receiver:{}; G2++ Model: Payer: {}, Receiver: {}".format(normP, normR, G2P, G2R))
+        rmse += currErr
+        print("\n\n")
+    print("Total RMSE: {}".format(rmse))
+    
+g2params = [5.53449534, 3.70068385, 0.001, 0.001, 0.925757890]  
+swaptionModelVsMkt(g2params, optimisationGrid)
     

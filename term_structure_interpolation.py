@@ -28,7 +28,7 @@ plt.legend(['data', 'linear'], loc='best')
 plt.show()
 
 # base date as of 5th July 2019
-base = datetime.date(2019,7,5)
+base = datetime.date(2019, 7, 5)
 numdays = 18270
 date_list = [base + datetime.timedelta(days=x) for x in range(numdays)]
 
