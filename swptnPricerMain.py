@@ -5,16 +5,12 @@ Created on Mon Oct  7 16:59:00 2019
 
 @author: paragonhao
 """
-
-
 from scipy.stats import norm
-# norm.cdf(0)
 import numpy as np
 from swptnG2PPAF import SWPTNG2PPAF
 import math
 import scipy.optimize as optimize
 from normalModel import NormalModel
-import datetime
 import pandas as pd
 from utils import Utils
 
@@ -22,10 +18,10 @@ from utils import Utils
 notional = 1.0
 
 # frequency of the payment 
-payFreq = 0.5
+payFreq = 0.25
 
 ################################## data initilaisation ############################################
-termStructure = Utils.readDF('data/termStructure.csv')
+termStructure = Utils.readDF('data/term_structure_interploated.csv')
 
 mktVol = Utils.readMktVolSurface('data/marketVol.csv')
 
@@ -38,14 +34,16 @@ G2 = SWPTNG2PPAF(termStructure)
 optimisationGrid['Vol'] = 0.0
 
 for idx, row in optimisationGrid.iterrows():
-    optimisationGrid['Vol'][idx] =  mktVol[row['Maturity']][row['Tenor']]
+    curVol = mktVol[row['Tenor']][row['Maturity']]
+    optimisationGrid['Vol'][idx] = curVol
 
 optimisationGrid['Fss'] = 0.0
 
 for idx, row in optimisationGrid.iterrows():
-    optimisationGrid['Fss'][idx] =  fssGrid[row['Maturity']][row['Tenor']]
+    optimisationGrid['Fss'][idx] =  fssGrid[row['Tenor']][row['Maturity']]
 
 ######################################################################################################
+
 
 
 ################################## Optimisation Function  ############################################
@@ -69,10 +67,12 @@ def swaptionPricingOptim(g2params, optimisationGrid):
         fixedRate = row['Fss']/100.0
         print("Maturity: {}, tenor: {}, vol: {}, fixedRate: {}".format(maturity, tenor, mktVol, fixedRate))
         
-        rmse += swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktVol)
+        normP, normR, G2P, G2R = swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktVol)
+        currErr = (normP + normR - G2P - G2R) ** 2
+        rmse += currErr
+        
     print("Total RMSE: {}".format(rmse))
-    return rmse
-    
+    return rmse/len(optimisationGrid)
 ######################################################################################################
      
 
@@ -93,6 +93,9 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     P_0_T = G2.getTermStructure(maturity)
     
     # find out the cash flow and the payment time in terms of years
+    # tau: payment Time in terms of year
+    # c_i: cash flow at each time of the IRS
+    # t_i: time at which the payments are made
     paymentTimes = tenor/payFreq
     tau = np.repeat(payFreq, paymentTimes, axis=0)
     c_i = tau * fixedRate
@@ -136,10 +139,15 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     
     # numerically solves the integral
     for x in xList:
+#        print("XList max: {}, min: {}".format(max(xList), min(xList)))
         lambda_array = []
         for i in range(len(t_i)):
-            lambda_array.append(c_i[i] * A_array[i] * math.exp(-Ba_array[i] * x))
-        
+#            print("gett array values c_i: {}, A_array: {}, Ba_array: {}, x: {}".format(c_i[i], A_array[i], Ba_array[i], x))
+            try:
+                lambda_array.append(c_i[i] * A_array[i] * math.exp(-Ba_array[i] * x))
+            except OverflowError:
+                print("exponential value on Ba_array is too big {}")     
+                
         def y_bar_solver(y):
             sum_all = 0.0
             
@@ -152,7 +160,6 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
         
         cdf_val_1 = norm.cdf(-isPayer * h1)
         cdf_val_2 = norm.cdf(-isReceiver * h1)
-        
         try:
             for i in range(len(t_i)):
                 h2 = h1 + Bb_array[i] * sigma_y * txy
@@ -162,6 +169,7 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
                 cdf_val_2 -= lambda_array[i] * math.exp(kappa) * norm.cdf(-h2 * isReceiver)[0]
         except OverflowError:
             print("Overflow err: ")
+            
             
         temp_pdf = (x - mu_x) / sigma_x
         integral_result_Payer += math.exp(-0.5 * temp_pdf * temp_pdf) * cdf_val_1/(sigma_x * math.sqrt(2.0 * math.pi))
@@ -176,15 +184,14 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     
     normModel = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = mktVol/2.0, maturity = maturity, discountFactors=dfs)
     
-    return (swaptionPricePayer + swaptionPriceReceiver) - (normModel.getPayerSwaptionPrice() + normModel.getReceiverSwaptionPrice()) ** 2
-
+    return normModel.getPayerSwaptionPrice(), normModel.getReceiverSwaptionPrice(), swaptionPricePayer, swaptionPriceReceiver
 ############################################################################################################################################################
 
 
 
 ########################################### execution ########################################################
 #g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-g2params = [2,0.1,0.1,0.1,0.999]
+g2params = [2, 0.1, 0.1, 0.1, 0.999]
 
 swaptionPricingOptim(g2params, optimisationGrid)
 bnds = ((0.001, 100),(0.001, 100),(0.001, 100),(0.001, 100),(-0.999, 0.999))
@@ -197,16 +204,6 @@ if result.success:
     print(fitted_params)
 else:
     raise ValueError(result.message)
+########################################################################################
     
     
-# g2params = [2.8187,0.035,0.0579,0.0091,-0.999]
-
-
-# g2params = [1,1,1,1,0.999],  bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(-0.999, 0.999))
-# [ 5.00e+00  5.00e+00  1.00e-03  1.00e-03 -9.99e-01]， Total RMSE: [-0.01869742]
-
-# g2params = [2,0.1,0.1,0.1,0.999], bnds = ((0.001, 5),(0.001, 5),(0.001, 5),(0.001, 5),(-0.999, 0.999))
-# [ 5.00e+00  5.00e+00  1.00e-03  1.00e-03 -9.99e-01], Total RMSE: [-0.01869742]
-
-# result with g2params = [2,0.1,0.1,0.1,0.999]， bnds = ((0.001, 100),(0.001, 100),(0.001, 100),(0.001, 100),(-0.999, 0.999))
-#[1.28136999e+01 1.10995357e+01 1.00000000e-03 4.79199940e-02 7.76880225e-01]

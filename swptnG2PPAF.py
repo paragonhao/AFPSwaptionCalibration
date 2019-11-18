@@ -11,17 +11,20 @@ import math
 class SWPTNG2PPAF:
     
     termStructure = None
+    daysInOneYr = 365
     
     def __init__(self, termStructure):
         self.termStructure = termStructure
-        termStructure['Term[y]'] = termStructure['Term[y]'].apply(lambda x: round(float(x),1))
+#        termStructure['Term[y]'] = termStructure['Term[y]'].apply(lambda x: round(float(x),1))
         
     
     
     def getTermStructure(self, T):
-        currTS = self.termStructure[self.termStructure['Term[y]']==T]
-        
-        return float(currTS['DF.mid'].mean())
+        days = T * self.daysInOneYr
+        currTS_ceil = self.termStructure[self.termStructure['term_days']==math.ceil(days)]
+        currTS_floor = self.termStructure[self.termStructure['term_days']==math.floor(days)]
+
+        return (float(currTS_ceil['discounts']) + float(currTS_floor['discounts']))/2
     
     
     
@@ -126,7 +129,7 @@ class SWPTNG2PPAF:
         
         return rho * eta * sigma * (1.0 - math.exp(-(alpha + beta) * T)) /((alpha + beta) * sigma_x * sigma_y)
          
-    # helper functions
-    def getRiskFreeRate(self, maturity, termStructure):
-        return pow(1.0 / termStructure, 1.0/maturity) - 1
+    #DEPRECATED: helper functions
+#    def getRiskFreeRate(self, maturity, termStructure):
+#        return pow(1.0 / termStructure, 1.0/maturity) - 1
     

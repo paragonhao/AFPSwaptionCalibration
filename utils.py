@@ -20,7 +20,7 @@ class Utils:
     def readDF(filePath):
         # read in Discount factor
         DFactors = pd.read_csv(filePath)
-        DFactors['Date'] = pd.to_datetime(DFactors.Date)
+        DFactors['days'] = pd.to_datetime(DFactors.days)
         return DFactors
     
     @staticmethod 
