@@ -11,7 +11,6 @@ import math
 class SWPTNG2PPAF:
     
     termStructure = None
-    daysInOneYr = 365
     
     def __init__(self, termStructure):
         self.termStructure = termStructure
@@ -20,12 +19,7 @@ class SWPTNG2PPAF:
     
     
     def getTermStructure(self, T):
-        days = T * self.daysInOneYr
-        currTS_ceil = self.termStructure[self.termStructure['term_days']==math.ceil(days)]
-        currTS_floor = self.termStructure[self.termStructure['term_days']==math.floor(days)]
-
-        return (float(currTS_ceil['discounts']) + float(currTS_floor['discounts']))/2
-    
+        return self.termStructure.discount(T)
     
     
     # V(t,T) in the book page 145

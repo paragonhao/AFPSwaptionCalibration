@@ -33,3 +33,10 @@ def f(x):
 
 
 print(newton(f, 5))
+
+
+def y_bar_solver(y):
+    
+    return y**2 - y -1
+
+y_bar = optimize.fsolve(y_bar_solver, x0=5, xtol=1e-6)
