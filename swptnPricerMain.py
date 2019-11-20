@@ -119,17 +119,18 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     Bb_array = []
     lambda_array = np.repeat(0, len(t_i), axis=0)
     # define the boundary 
-    interval = 0.01
+    interval = 0.0001
     lower = mu_x - 10 * sigma_x
     upper = mu_x + 10 * sigma_x
+
     xList = np.arange(lower, upper, interval)
     
     for i in range(len(t_i)): 
         A_array.append(G2.A(g2params, maturity, t_i[i]))
 
-        Ba_array.append(G2.B(alpha, t_i[i] - maturity))
+        Ba_array.append(G2.B(alpha, maturity, t_i[i]))
 
-        Bb_array.append(G2.B(beta, t_i[i] - maturity))
+        Bb_array.append(G2.B(beta, maturity, t_i[i]))
     
     
     integral_result_Payer = 0 
@@ -141,13 +142,15 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
     for x in xList:
 #        print("XList max: {}, min: {}".format(max(xList), min(xList)))
         lambda_array = []
+        
         for i in range(len(t_i)):
 #            print("gett array values c_i: {}, A_array: {}, Ba_array: {}, x: {}".format(c_i[i], A_array[i], Ba_array[i], x))
             try:
                 lambda_array.append(c_i[i] * A_array[i] * math.exp(-Ba_array[i] * x))
             except OverflowError:
                 print("exponential value on Ba_array is too big {}")     
-                
+        
+        # confirm if this is correct 
         def y_bar_solver(y):
             sum_all = 0.0
             
@@ -156,10 +159,12 @@ def swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktV
             return sum_all - 1.0
         
         y_bar = optimize.fsolve(y_bar_solver, x0=1, xtol=1e-6)
-        h1 = (y_bar - mu_y)/(sigma_y * txy) - rho_xy * (x - mu_x)/(sigma_x * txy)
+        
+        h1 = (y_bar - mu_y)/(sigma_y * txy) - (rho_xy * (x - mu_x))/(sigma_x * txy)
         
         cdf_val_1 = norm.cdf(-isPayer * h1)
         cdf_val_2 = norm.cdf(-isReceiver * h1)
+        
         try:
             for i in range(len(t_i)):
                 h2 = h1 + Bb_array[i] * sigma_y * txy
@@ -209,31 +214,31 @@ else:
     
 
 ########################################### compare results ########################################################
-def swaptionModelVsMkt(g2params, optimisationGrid):
-    
-    rmse = 0.0
-    
-    for idx, row in optimisationGrid.iterrows():
-        
-        maturity = Utils.monthToYear(row['Maturity'])
-        tenor = Utils.monthToYear(row['Tenor'])
-        
-        # vol is in basis points
-        mktVol = row['Vol']/10000.0
-        
-        # fixed rate is in percentage
-        fixedRate = row['Fss']/100.0
-        print("\n\n")
-        print("Maturity: {}, tenor: {}, vol: {}, fixedRate: {}".format(maturity, tenor, mktVol, fixedRate))
-        
-        normP, normR, G2P, G2R = swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktVol)
-        
-        currErr = (normP + normR - G2P - G2R) ** 2
-        print("Normal Model: Payer: {}, Receiver:{}; G2++ Model: Payer: {}, Receiver: {}".format(normP, normR, G2P, G2R))
-        rmse += currErr
-        print("\n\n")
-    print("Total RMSE: {}".format(rmse))
-    
-g2params = [5.53449534, 3.70068385, 0.001, 0.001, 0.925757890]  
-swaptionModelVsMkt(g2params, optimisationGrid)
+#def swaptionModelVsMkt(g2params, optimisationGrid):
+#    
+#    rmse = 0.0
+#    
+#    for idx, row in optimisationGrid.iterrows():
+#        
+#        maturity = Utils.monthToYear(row['Maturity'])
+#        tenor = Utils.monthToYear(row['Tenor'])
+#        
+#        # vol is in basis points
+#        mktVol = row['Vol']/10000.0
+#        
+#        # fixed rate is in percentage
+#        fixedRate = row['Fss']/100.0
+#        print("\n\n")
+#        print("Maturity: {}, tenor: {}, vol: {}, fixedRate: {}".format(maturity, tenor, mktVol, fixedRate))
+#        
+#        normP, normR, G2P, G2R = swaptionPricingFunction(g2params, tenor, maturity, notional, fixedRate, mktVol)
+#        
+#        currErr = (normP + normR - G2P - G2R) ** 2
+#        print("Normal Model: Payer: {}, Receiver:{}; G2++ Model: Payer: {}, Receiver: {}".format(normP, normR, G2P, G2R))
+#        rmse += currErr
+#        print("\n\n")
+#    print("Total RMSE: {}".format(rmse))
+#    
+#g2params = [5.53449534, 3.70068385, 0.001, 0.001, 0.925757890]  
+#swaptionModelVsMkt(g2params, optimisationGrid)
     

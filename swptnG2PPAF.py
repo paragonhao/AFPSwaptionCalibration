@@ -32,7 +32,7 @@ class SWPTNG2PPAF:
     # g2params: the five parameters 
     # t: starting time of the ZCB 
     # T: ending time of the ZCB
-    def V(self, g2params, t):
+    def V(self, g2params, t, T):
         # five params in an array 
         alpha = g2params[0]
         beta = g2params[1]
@@ -40,13 +40,18 @@ class SWPTNG2PPAF:
         eta = g2params[3]
         rho = g2params[4]
         
-        expat = math.exp(-alpha * t)
-        expbt = math.exp(-beta * t)
+        Tminust = T - t
+        
+        expat = math.exp(-alpha * Tminust)
+        expbt = math.exp(-beta * Tminust)
         cx = sigma/alpha
         cy = eta/beta
-        temp1 = cx * cx * (t + (2.0 * expat - 0.5 * expat * expat - 1.5)/alpha)
-        temp2 = cy * cy * (t + (2.0 * expbt - 0.5 * expbt * expbt - 1.5)/beta)
-        temp3 = 2.0 * rho * cx * cy * (t + (expat -1.0)/alpha + (expbt - 1.0)/beta - 
+        
+        
+        
+        temp1 = cx * cx * (Tminust + (2.0 * expat - 0.5 * expat * expat - 1.5)/alpha)
+        temp2 = cy * cy * (Tminust + (2.0 * expbt - 0.5 * expbt * expbt - 1.5)/beta)
+        temp3 = 2.0 * rho * cx * cy * (Tminust + (expat -1.0)/alpha + (expbt - 1.0)/beta - 
                                        (expat * expbt - 1.0)/(alpha + beta))
         
         return temp1 + temp2 + temp3
@@ -56,17 +61,17 @@ class SWPTNG2PPAF:
     # A(t, T) function in the book page 148 
     # g2params: the five parameters 
     # Note: t_i > T
-    def A(self, g2params, t_i, T):
-        return (self.getTermStructure(T)/self.getTermStructure(t_i)) * math.exp(0.5 * (self.V(g2params, T - t_i) - 
-                                      self.V(g2params, T) + self.V(g2params, t_i)))
+    def A(self, g2params, t, T):
+        return (self.getTermStructure(T)/self.getTermStructure(t)) * math.exp(0.5 * (self.V(g2params, t, T) - 
+                                      self.V(g2params, 0, T) + self.V(g2params, 0, t)))
 
 
     
-    def B(self, x, t):
-        return (1.0 - math.exp(-x*t))/x
+    def B(self, z, t, T):
+        return (1.0 - math.exp(-z*(T - t)))/z
         
     
-    
+     # validate from line 69 to 135
     # mu_x function in book page 154
     # mu 1 
     def Mu_x(self, g2params, T):
@@ -80,7 +85,7 @@ class SWPTNG2PPAF:
         temp = sigma * sigma/(alpha * alpha)
         
         mux = -(temp + rho * sigma * eta/(alpha * beta)) * (1.0 - math.exp(-alpha * T)) \
-        - 0.5 * temp * (1.0 - math.exp(-2.0 * alpha * T )) - rho * sigma * eta/(beta * (alpha + beta)) \
+        + 0.5 * temp * (1.0 - math.exp(-2.0 * alpha * T )) + (rho * sigma * eta/(beta * (alpha + beta))) \
         * (1 - math.exp(-(beta + alpha) * T))
         
         return mux 
@@ -100,8 +105,8 @@ class SWPTNG2PPAF:
         temp = eta * eta /(beta * beta)
         
         muy = -(temp + rho * sigma * eta/(alpha * beta)) * (1.0 - math.exp(-beta * T)) \
-        - 0.5 * temp * (1.0 - math.exp(-2.0 * beta * T)) \
-        - rho * sigma * eta /(alpha * (alpha + beta)) * (1.0 - math.exp(-(beta + alpha) * T))
+        + 0.5 * temp * (1.0 - math.exp(-2.0 * beta * T)) \
+        + (rho * sigma * eta /(alpha * (alpha + beta))) * (1.0 - math.exp(-(beta + alpha) * T))
         
         return muy
     
@@ -127,7 +132,7 @@ class SWPTNG2PPAF:
         eta = g2params[3]
         rho = g2params[4]
         
-        return rho * eta * sigma * (1.0 - math.exp(-(alpha + beta) * T)) /((alpha + beta) * sigma_x * sigma_y)
+        return (rho * eta * sigma * (1.0 - math.exp(-(alpha + beta) * T))) /((alpha + beta) * sigma_x * sigma_y)
          
     #DEPRECATED: helper functions
 #    def getRiskFreeRate(self, maturity, termStructure):
