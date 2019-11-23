@@ -30,15 +30,15 @@ class Utils:
         monthInYr = 12.0
         month = re.search("(\d+)", monthString)
         return float(month[0])/monthInYr
-
+    
     
     
     @staticmethod
-    def getTermStructure(date):
+    def getTermStructure(date, filePath):
         
-        tsRaw = pd.read_excel('data/swaption_termStructure.xlsx',index_col=None,  usecols = "A,C", sheetname=date)
+        tsRaw = pd.read_excel(filePath, index_col=None, usecols = "A,C", sheetname=date)
         
-        todaysDate = ql.DateParser.parseFormatted(date,'%Y-%m-%d')
+        todaysDate = ql.DateParser.parseFormatted(date, '%Y-%m-%d')
         
         ql.Settings.instance().evaluationDate = todaysDate
         
@@ -46,7 +46,7 @@ class Utils:
         spotRates = []
         
         for idx, row in tsRaw.iterrows():
-            spotDates.append(ql.DateParser.parseFormatted(row['Payment Date'],'%m/%d/%Y'))  
+            spotDates.append(ql.DateParser.parseFormatted(row['Payment Date'], '%m/%d/%Y'))  
             spotRates.append(row['Market Rate'])
         
         spotRates = [x/100 for x in spotRates]
