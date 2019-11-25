@@ -19,3 +19,12 @@ class UniteTestMethods(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
     
+    
+# example on how to construct the curve
+from utils import Utils
+
+
+file_Path_swaption_ts = 'data/swaption_termStructure.xlsx'
+calibrationDate = '2019-07-05'
+termStructure = Utils.getTermStructure(calibrationDate, file_Path_swaption_ts)
+Utils.getForwardCurve(termStructure)

@@ -13,6 +13,7 @@ import numpy as np
 import re
 import QuantLib as ql
 import matplotlib.pyplot as plt 
+import QuantLib as ql
 
 class Utils:
     
@@ -61,3 +62,14 @@ class Utils:
                                      compounding, compoundingFrequency)
         return spotCurve
     
+    
+    
+    @staticmethod
+    def getForwardCurve(spotCurve):
+        today = spotCurve.referenceDate()
+        end = today + ql.Period(50,ql.Years)
+        
+        dates = [ ql.Date(serial) for serial in range(today.serialNumber(), end.serialNumber()+1) ]
+        
+        rates_c = [spotCurve.forwardRate(d, ql.TARGET().advance(d,1,ql.Days), ql.Actual360(), ql.Simple).rate() for d in dates ]
+        return rates_c
