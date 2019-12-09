@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov 21 15:50:23 2019
+Created on Sat Dec  7 14:18:52 2019
 
 @author: paragonhao
 """
@@ -13,16 +13,19 @@ from utils import Utils
 import numpy as np
 import matplotlib.pyplot as plt
 
-dates = ['2019-07-05','2019-07-08','2019-07-09','2019-07-10','2019-07-11'
-         ,'2019-07-12','2019-07-15','2019-07-16','2019-07-17','2019-07-18','2019-07-19']
+dates = ['2019-07-05']
 
 file_Path_swaption_vol = 'data/swaption_vols.xlsx'
-file_Path_optim_grid = 'data/optimisationGrid.csv'
 file_Path_swaption_fss = 'data/swaption_fss.xlsx'
 file_Path_swaption_ts = 'data/swaption_termStructure.xlsx'
 
 optimisationGrid = Utils.readOptimGrid(file_Path_optim_grid)
+Maturity= ['1M','3M','6M','9M','12M','24M','36M','60M','84M','120M','180M','240M','360M']
+Tenor= ['12M','24M','36M','60M','84M','120M','180M','240M','300M','360M']
 
+optimisationGrid = [(x,y) for x in Maturity for y in Tenor]
+
+optimisationGrid = pd.DataFrame(optimisationGrid, columns = ['Maturity', 'Tenor']) 
 
 def reportRMSEOverTime(g2params, dates, reportType, percentage=False):
     rmse_time_series = []
@@ -85,6 +88,8 @@ rmse_over_time = reportRMSEOverTime(g2params, dates, reportType=True, percentage
 pd.DataFrame(rmse_over_time).to_csv("rmse_over_time.csv")
 rmse_price = pd.read_csv("rmse_over_time.csv")
 rmse_price = rmse_price[['0']]
+
+
 plt.plot(dates, rmse_price)
 plt.xticks(rotation=90)
 plt.title("Market Price to Model Price RMSE Over 10 days")
@@ -143,5 +148,15 @@ plt.title("Market Vol to Model Vol RMSE Percentage Over 10 days")
 plt.ylabel("RMSE")
 plt.show()
 #############################################################################################################
+
+
+
+
+
+
+
+
+
+
 
 

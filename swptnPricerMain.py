@@ -45,12 +45,12 @@ for idx, row in optimisationGrid.iterrows():
 
 
 
-########################################### execution ########################################################
+########################################### execution Price RMSE########################################################
 # Contruct the term structure and run the calibration
 termStructure = Utils.getTermStructure(calibrationDate, file_Path_swaption_ts)
 G2 = SWPTNG2PPAF(termStructure, payFreq)
-G2.swaptionG2PPOptim(g2params, optimisationGrid)
-result = optimize.minimize(G2.swaptionG2PPOptim, g2params, args=(optimisationGrid), bounds=bnds, method='SLSQP')
+G2.swaptionG2PPOptimPrice(g2params, optimisationGrid)
+result = optimize.minimize(G2.swaptionG2PPOptimPrice, g2params, args=(optimisationGrid), bounds=bnds, method='SLSQP')
 
 
 if result.success:
@@ -60,3 +60,61 @@ if result.success:
 else:
     raise ValueError(result.message)
 #############################################################################################################
+  
+    
+########################################### execution Volatility ########################################################
+# Contruct the term structure and run the calibration
+termStructure = Utils.getTermStructure(calibrationDate, file_Path_swaption_ts)
+G2 = SWPTNG2PPAF(termStructure, payFreq)
+G2.swaptionG2PPOptimVol(g2params, optimisationGrid)
+result = optimize.minimize(G2.swaptionG2PPOptimVol, g2params, args=(optimisationGrid), bounds=bnds, method='SLSQP')
+
+
+if result.success:
+    fitted_params = result.x
+    print("current fitted value")
+    print(fitted_params)
+else:
+    raise ValueError(result.message)
+#############################################################################################################
+   
+
+
+########################################### execution Price Percentage RMSE ########################################################
+# Contruct the term structure and run the calibration
+g2params = [2, 0.1, 0.1, 0.1, 0.999]
+termStructure = Utils.getTermStructure(calibrationDate, file_Path_swaption_ts)
+G2 = SWPTNG2PPAF(termStructure, payFreq)
+G2.swaptionG2PPOptimPrice(g2params, optimisationGrid, percentage=True)
+percentage = True
+result_price_rmse = optimize.minimize(G2.swaptionG2PPOptimPrice, g2params, args=(optimisationGrid, percentage), bounds=bnds, method='SLSQP')
+
+if result_price_rmse.success:
+    fitted_params_p = result_price_rmse.x
+    print("current fitted value")
+    print(fitted_params_p)
+else:
+    raise ValueError(result_price_rmse.message)
+#############################################################################################################
+    
+    
+    
+########################################### execution Volatility Percentage ########################################################
+# Contruct the term structure and run the calibration
+g2params = [2, 0.1, 0.1, 0.1, 0.999]
+termStructure = Utils.getTermStructure(calibrationDate, file_Path_swaption_ts)
+G2 = SWPTNG2PPAF(termStructure, payFreq)
+G2.swaptionG2PPOptimVol(g2params, optimisationGrid, percentage=True)
+percentage = True
+result_vol_rmse = optimize.minimize(G2.swaptionG2PPOptimVol, g2params, args=(optimisationGrid, percentage), bounds=bnds, method='SLSQP')
+
+if result_vol_rmse.success:
+    fitted_params_v = result_vol_rmse.x
+    print("current fitted value")
+    print(fitted_params_v)
+else:
+    raise ValueError(result_vol_rmse.message)
+#############################################################################################################
+ 
+    
+    

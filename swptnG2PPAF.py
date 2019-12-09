@@ -137,7 +137,7 @@ class SWPTNG2PPAF:
     
      
 ################################## Optimisation Function  ############################################
-    def swaptionG2PPOptim(self, g2params, optimisationGrid):
+    def swaptionG2PPOptimPrice(self, g2params, optimisationGrid, percentage=False):
         
         rmse = 0.0
              
@@ -173,17 +173,122 @@ class SWPTNG2PPAF:
              
             normP, normR, G2P, G2R = self.swaptionPricingG2PP(g2params, tenor, maturity, self.notional, fixedRate, mktVol, c_i, t_i)
             
+            dfs = [self.getTermStructure(t) for t in t_i]
+            
             print("normP: {}".format(normP))
             print("normR: {}".format(normR))
             print("G2P: {}".format(G2P))
             print("G2R: {}".format(G2R))
             
-            currErr = (normP + normR - G2P - G2R) ** 2
-            rmse += currErr
             
-        print("Total RMSE: {}".format(rmse))
+            def Payer_IV_solver(iv):
+                
+                swaption_payer = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = iv, maturity = maturity, discountFactors=dfs)
+                    
+                return swaption_payer.getPayerSwaptionPrice() - G2P
+            
+            payer_IV = optimize.fsolve(Payer_IV_solver, x0=mktVol/2, xtol=1e-6)
+            
+            
+            def Receiver_IV_solver(iv):
+                
+                swaption_receiver = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = iv, maturity = maturity, discountFactors=dfs)
+                    
+                return swaption_receiver.getReceiverSwaptionPrice() - G2R
+            
+            receiver_IV = optimize.fsolve(Receiver_IV_solver, x0=mktVol/2, xtol=1e-6)
+            
+            print("Total model Vol : {}, Market Model: {}".format(receiver_IV + payer_IV, mktVol))
+            
+            if percentage:
+                currErr = (((normP + normR - G2P - G2R)/(normP + normR)) ** 2)
+                rmse += currErr
+            else:
+                currErr = (normP + normR - G2P - G2R) ** 2
+                rmse += currErr
+            
+        print("Total RMSE Price: {}".format(rmse))
         return rmse/len(optimisationGrid)
 ######################################################################################################
+    
+    
+    
+    def swaptionG2PPOptimVol(self, g2params, optimisationGrid, percentage=False):
+        
+        rmse_vol = 0.0
+             
+        print("parameters +++++++++++++++++++++++++++")
+        print(g2params)
+        print("+++++++++++++++++++++")
+        
+        for idx, row in optimisationGrid.iterrows():
+            
+            maturity = Utils.monthToYear(row['Maturity'])
+            tenor = Utils.monthToYear(row['Tenor'])
+            
+            # vol is in basis points
+            mktVol = row['Vol']/10000.0
+
+            
+            # fixed rate is in percentage
+            fixedRate = row['Fss']/100.0
+            
+            # find out the cash flow and the payment time in terms of years
+            # tau: payment Time in terms of year
+            # c_i: cash flow at each time of the IRS
+            # t_i: time at which the payments are made
+            paymentTimes = tenor/self.payFreq
+            
+            tau = np.repeat(self.payFreq, paymentTimes, axis=0)
+            
+            c_i = tau * fixedRate
+            
+            c_i[-1] = c_i[-1] + 1
+            t_i = np.arange(maturity+self.payFreq, tenor+maturity + self.payFreq, self.payFreq)
+            print("Maturity: {}, tenor: {}, vol: {}, fixedRate: {}".format(maturity, tenor, mktVol, fixedRate))
+             
+            normP, normR, G2P, G2R = self.swaptionPricingG2PP(g2params, tenor, maturity, self.notional, fixedRate, mktVol, c_i, t_i)
+            
+            
+            dfs = [self.getTermStructure(t) for t in t_i]
+            
+            # back out implied Volatility
+            def Payer_IV_solver(iv):
+                
+                swaption_payer = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = iv, maturity = maturity, discountFactors=dfs)
+                    
+                return swaption_payer.getPayerSwaptionPrice() - G2P
+            
+            payer_IV = optimize.fsolve(Payer_IV_solver, x0=mktVol/2, xtol=1e-6)
+            
+            
+            def Receiver_IV_solver(iv):
+                
+                swaption_receiver = NormalModel(fRate = fixedRate, strike = fixedRate, impliedVol = iv, maturity = maturity, discountFactors=dfs)
+                    
+                return swaption_receiver.getReceiverSwaptionPrice() - G2R
+            
+            receiver_IV = optimize.fsolve(Receiver_IV_solver, x0=mktVol/2, xtol=1e-6)
+            
+            # formula to back out g2++ vol 
+            print("Payer IV: {}".format(payer_IV[0]))
+            print("Receiver IV: {}".format(receiver_IV[0]))
+            print("Total model Vol : {}, Market Model: {}".format(receiver_IV + payer_IV, mktVol))
+            print("normP: {}".format(normP))
+            print("normR: {}".format(normR))
+            print("G2P: {}".format(G2P))
+            print("G2R: {}".format(G2R))
+            
+            if percentage:
+                currErr = ((payer_IV[0] + receiver_IV[0] - mktVol) ** 2)/mktVol
+                rmse_vol += currErr
+            else:
+                currErr = (payer_IV[0] + receiver_IV[0] - mktVol) ** 2
+                rmse_vol += currErr
+            
+        print("Total RMSE Vol: {}".format(rmse_vol/len(optimisationGrid)))
+        return rmse_vol/len(optimisationGrid)
+
 
 
 ######################################################################################################        

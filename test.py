@@ -21,6 +21,7 @@ if __name__ == '__main__':
     
     
 # example on how to construct the curve
+
 from utils import Utils
 
 
